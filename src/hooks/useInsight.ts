@@ -12,6 +12,7 @@ export const useInsight = (id: string) => {
     const simulation = getFormData(id)
 
     if (simulation?.insight) {
+      console.log("⚡ [Cache] Insight recuperado! Evitando chamada para a API.")
       return simulation.insight
     }
 
@@ -23,6 +24,8 @@ export const useInsight = (id: string) => {
 
   const fetchInsight = useCallback(
     async (simulationId: string) => {
+      if (isRequestPending.current) return
+
       const simulation = getFormData(simulationId)
 
       if (!simulation) {
@@ -37,29 +40,31 @@ export const useInsight = (id: string) => {
       try {
         const prompt = buildAIPrompt(simulation)
         const data = await getInsight(prompt)
+
         setInsight(data)
 
         updateSimulation(simulationId, {
           ...simulation,
           insight: data,
         } as SimulationRecord)
-      } catch {
+      } catch (err) {
+        console.error("Erro ao buscar insight:", err)
         setError('Erro ao gerar o diagnóstico. Tente novamente.')
       } finally {
         isRequestPending.current = false
         setIsLoading(false)
       }
     },
-    [getFormData, updateSimulation],
+    [getFormData, updateSimulation]
   )
 
   useEffect(() => {
-    if (insight || isLoading || isRequestPending.current || error) {
+    if (insight || error) {
       return
     }
 
     fetchInsight(id)
-  }, [id, insight, isLoading, fetchInsight])
+  }, [id, insight, error, fetchInsight])
 
   return { insight, isLoading, error, fetchInsight }
 }

@@ -1,9 +1,10 @@
+import { useCallback } from 'react'
 import { type SimulationFormData, type SimulationRecord } from '@/data/simulation'
 
 const LOCAL_STORAGE_KEY = 'simulation-data'
 
 export const useSimulationStorage = () => {
-  const saveFormData = (formData: SimulationFormData) => {
+  const saveFormData = useCallback((formData: SimulationFormData) => {
     const id = crypto.randomUUID()
     const record: SimulationRecord = { ...formData, id }
 
@@ -13,9 +14,9 @@ export const useSimulationStorage = () => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([...savedData, record]))
 
     return id
-  }
+  }, [])
 
-  const getFormData = (id: string) => {
+  const getFormData = useCallback((id: string) => {
     const storage = localStorage.getItem(LOCAL_STORAGE_KEY)
 
     if (!storage) {
@@ -24,9 +25,9 @@ export const useSimulationStorage = () => {
 
     const savedData = JSON.parse(storage) as SimulationRecord[]
     return savedData.find((record) => record.id === id) || null
-  }
+  }, [])
 
-    const updateSimulation = (id: string, data: SimulationRecord) => {
+  const updateSimulation = useCallback((id: string, data: SimulationRecord) => {
     const storage = localStorage.getItem(LOCAL_STORAGE_KEY)
     const savedData = storage ? (JSON.parse(storage) as SimulationRecord[]) : []
 
@@ -35,7 +36,7 @@ export const useSimulationStorage = () => {
     )
 
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
-  }
+  }, [])
 
   return { saveFormData, getFormData, updateSimulation }
 }
