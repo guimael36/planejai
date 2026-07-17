@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { buildAIPrompt } from '@/data/aiPrompt'
 import { useSimulationStorage } from '@/hooks/useSimulationStorage'
-import { getInsight, type InsightData } from '@/services/aiService'
-import type { SimulationRecord } from '@/data/simulation'
+import { getInsight, type InsightData, sendChatMessageToMentor } from '@/services/aiService'
+import type { SimulationRecord, ChatMessage } from '@/data/simulation'
 
 export const useInsight = (id: string) => {
   const isRequestPending = useRef(false)
@@ -18,6 +18,12 @@ export const useInsight = (id: string) => {
 
     return null
   })
+
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+    const simulation = getFormData(id)
+    return simulation?.chatHistory || []
+  })
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +64,32 @@ export const useInsight = (id: string) => {
     [getFormData, updateSimulation]
   )
 
+  const sendChatMessage = async (message: string) => {
+    const simulation = getFormData(id)
+    if (!simulation || !insight) return
+
+    const newUserMessage: ChatMessage = { role: 'user', content: message }
+    const updatedHistory = [...chatHistory, newUserMessage]
+    setChatHistory(updatedHistory)
+    setIsSendingMessage(true)
+
+    try {
+      const responseText = await sendChatMessageToMentor(message, chatHistory, insight)
+
+      const newModelMessage: ChatMessage = { role: 'model', content: responseText }
+      const finalHistory = [...updatedHistory, newModelMessage]
+
+      setChatHistory(finalHistory)
+      updateSimulation(id, { ...simulation, chatHistory: finalHistory } as SimulationRecord)
+    } catch (err) {
+      console.error(err)
+      setChatHistory(chatHistory)
+      alert("Erro ao enviar mensagem. Tente novamente.")
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
   useEffect(() => {
     if (insight || error) {
       return
@@ -66,5 +98,5 @@ export const useInsight = (id: string) => {
     fetchInsight(id)
   }, [id, insight, error, fetchInsight])
 
-  return { insight, isLoading, error, fetchInsight }
+  return { insight, isLoading, error, fetchInsight, chatHistory, sendChatMessage, isSendingMessage }
 }
